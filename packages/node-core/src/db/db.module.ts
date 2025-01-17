@@ -73,6 +73,13 @@ const buildSequelizeOptions = (nodeConfig: NodeConfig, option: DbOption): Sequel
         cert: nodeConfig.postgresClientCert,
       },
     },
+    // ADD THIS TO ENHANCE THE CONNECTION ON PRODUCTION.
+    pool: {
+      max: 100, // Maximum number of connections in the pool
+      min: 10, // Minimum number of connections
+      idle: 10000, // Connection idle time before being released (ms)
+      acquire: 30000, // Maximum time for a connection to be acquired before throwing an error (ms)
+    },
     logging: (sql: string, timing?: number) => {
       logger.debug(sql);
     },

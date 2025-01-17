@@ -215,6 +215,56 @@ export abstract class BaseIndexerManager<
     }
   }
 
+  protected async indexBatchData<K extends keyof FilterMap>(
+    kind: K,
+    data: HandlerInputMap[K],
+    ds: DS,
+    getVM: (ds: DS) => Promise<IndexerSandbox>
+  ): Promise<void> {
+    let vm: IndexerSandbox;
+    assert(this.filterMap[kind], `Unsupported handler kind: ${kind.toString()}`);
+    if (this.isRuntimeDs(ds)) {
+      const handlers = ds.mapping.handlers.filter((h) => h.kind === kind);
+
+      for (const handler of handlers) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        vm ??= await getVM(ds);
+        // filter data before pass forward using the filterMap
+        const filteredData = data.filter((item: any) => this.filterMap[kind](item, handler.filter, ds)) as any;
+
+        // if not data after apply the filter, we do not need to call the handler.
+        if (filteredData.length === 0) continue;
+
+        const parsedData = await this.prepareFilteredData(kind, filteredData, ds);
+
+        monitorWrite(() => `- Handler: ${handler.handler}, args:${handledStringify(filteredData)}`);
+        this.nodeConfig.profiler
+          ? await profilerWrap(
+              vm.securedExec.bind(vm),
+              'handlerPerformance',
+              handler.handler
+            )(handler.handler, [parsedData])
+          : await vm.securedExec(handler.handler, [parsedData]);
+      }
+    } else if (this.isCustomDs(ds)) {
+      const handlers = this.filterCustomDsHandlers<K>(ds, data, this.processorMap[kind], (data, baseFilter) => {
+        if (!baseFilter.length) return true;
+
+        return baseFilter.find((filter) => !!data.filter((item: any) => this.filterMap[kind](item, filter, ds)).length);
+      });
+
+      for (const handler of handlers) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        vm ??= await getVM(ds);
+        const filteredData = data.filter((item: any) => this.filterMap[kind](item, handler.filter, ds)) as any;
+        // if not data after apply the filter, we do not need to call the handler.
+        if (filteredData.length === 0) continue;
+        monitorWrite(() => `- Handler: ${handler.handler}, args:${handledStringify(filteredData)}`);
+        await this.transformAndExecuteCustomDs(ds, vm, handler, filteredData);
+      }
+    }
+  }
+
   private filterCustomDsHandlers<K extends keyof FilterMap>(
     ds: CDS, //SubstrateCustomDataSource<string, SubstrateNetworkFilter>,
     data: HandlerInputMap[K],
