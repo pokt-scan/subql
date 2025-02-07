@@ -174,7 +174,9 @@ export class IndexerSandbox extends Sandbox {
       e.stack = newStack;
       e.handler = funcName;
       if (this.config.logLevel && levelFilter('debug', this.config.logLevel)) {
-        e.handlerArgs = JSON.stringify(args);
+        // this now because block contains events/msgs and they contains block again, it throw another error due to
+        // infinite calls
+        // e.handlerArgs = JSON.stringify(args);
       }
       throw e;
     } finally {

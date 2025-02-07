@@ -7,6 +7,7 @@ export * from './entities';
 export * from './poi';
 export * from './types';
 export * from './StoreOperations';
+export * from './store';
 export * from './store.service';
 export * from './inMemoryCache.service';
 export * from './storeModelProvider';
