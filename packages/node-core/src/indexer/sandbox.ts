@@ -13,7 +13,7 @@ import {NodeConfig} from '../configure/NodeConfig';
 import {getLogger} from '../logger';
 import {timeout} from '../utils/promise';
 
-export const SANDBOX_DEFAULT_BUILTINS = ['assert', 'buffer', 'crypto', 'util', 'path', 'url', 'stream'];
+export const SANDBOX_DEFAULT_BUILTINS = ['assert', 'buffer', 'crypto', 'util', 'path', 'url', 'stream', 'perf_hooks'];
 
 export interface SandboxOption {
   cache?: Cache;
@@ -57,6 +57,11 @@ export class Sandbox extends NodeVM {
           resolve: (moduleName: string) => {
             return require.resolve(moduleName, {paths: [option.root]});
           },
+          // WHY THIS CHANGE?
+          // 1. sandbox add a performance bottleneck that prevent us to been able to save more than 100k documents in batches
+          // 2. limit the builtin libraries is not something we need/want, we know what we are doing
+          builtin: ["*"],
+          context: 'host',
         },
       })
     );
@@ -168,11 +173,14 @@ export class IndexerSandbox extends Sandbox {
     this.setGlobal('args', args);
     this.setGlobal('funcName', funcName);
     try {
+      logger.info(`Running handler ${funcName}`);
       await this.runTimeout(this.config.timeout);
+      logger.info(`Handler done ${funcName}`);
     } catch (e: any) {
       const newStack = await this.convertStack(e.stack);
       e.stack = newStack;
       e.handler = funcName;
+      logger.error(`Error in handler ${funcName}: ${e.message} \n ${newStack}`)
       if (this.config.logLevel && levelFilter('debug', this.config.logLevel)) {
         // this now because block contains events/msgs and they contains block again, it throw another error due to
         // infinite calls
@@ -188,11 +196,17 @@ export class IndexerSandbox extends Sandbox {
   private injectGlobals({cache, store}: SandboxOption) {
     if (store) {
       this.freeze(store, 'store');
+      // @ts-ignore
+      global.store = store;
     }
     if (cache) {
       this.freeze(cache, 'cache');
+      // @ts-ignore
+      global.cache = cache;
     }
     this.freeze(logger, 'logger');
+    // @ts-ignore
+    global.logger = logger;
   }
 }
 

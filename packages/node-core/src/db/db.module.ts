@@ -61,7 +61,7 @@ const sequelizeFactory = (option: SequelizeOption) => async () => {
 const buildSequelizeOptions = (nodeConfig: NodeConfig, option: DbOption): SequelizeOption => {
   const logger = getLogger('SQL');
 
-  return {
+  const opts = {
     ...option,
     dialect: 'postgres',
     ssl: nodeConfig.isPostgresSecureConnection,
@@ -81,9 +81,24 @@ const buildSequelizeOptions = (nodeConfig: NodeConfig, option: DbOption): Sequel
       evict: nodeConfig.pgPoolEvict,
     },
     logging: (sql: string, timing?: number) => {
-      logger.debug(sql);
+      if (timing && timing > 1000) { // Log only queries taking longer than 2000ms
+        logger.warn(`
+          Slow query detected, try to enhance this to avoid slow down the indexing process.
+          Time: ${timing}ms \n
+          Query: ${sql}
+        `)
+      } else {
+        logger.debug(`SQL: ${sql} Time: ${timing}ms`);
+      }
     },
   };
+
+  // Helps us identify which Node/Sequelize options we are using
+  logger.debug(`Sequelize options: ${JSON.stringify(opts, null, 2)}`)
+  logger.debug(`NodeConfig options: ${JSON.stringify(nodeConfig, null, 2)}`)
+
+  // @ts-ignore
+  return opts;
 };
 
 export async function establishNewSequelize(nodeConfig: NodeConfig): Promise<Sequelize> {

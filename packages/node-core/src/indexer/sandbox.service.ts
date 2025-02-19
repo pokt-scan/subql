@@ -53,8 +53,14 @@ export class SandboxService<Api, UnsafeApi> {
       processor.freeze(value, key);
     }
     processor.freeze(api, 'api');
+    // NOTE: expose this for `context: host` which is required to speedup the process.
+    // @ts-ignore
+    global.api = api;
     if (this.nodeConfig.unsafe) {
       processor.freeze(unsafeApi, 'unsafeApi');
+      // NOTE: expose this for `context: host` which is required to speedup the process.
+      // @ts-ignore
+      global.unsafeApi = unsafeApi;
     }
     processor.freeze(this.project.network.chainId, 'chainId');
     return processor;
