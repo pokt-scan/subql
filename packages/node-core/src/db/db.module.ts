@@ -80,12 +80,13 @@ const buildSequelizeOptions = (nodeConfig: NodeConfig, option: DbOption): Sequel
       idle: nodeConfig.pgPoolIdle,
       evict: nodeConfig.pgPoolEvict,
     },
+    benchmark: true,
     logging: (sql: string, timing?: number) => {
       if (timing && timing > 1000) { // Log only queries taking longer than 2000ms
         logger.warn(`
           Slow query detected, try to enhance this to avoid slow down the indexing process.
           Time: ${timing}ms \n
-          Query: ${sql}
+          Query: ${sql.substring(0, 100)}
         `)
       } else {
         logger.debug(`SQL: ${sql} Time: ${timing}ms`);

@@ -13,7 +13,7 @@ import {NodeConfig} from '../configure/NodeConfig';
 import {getLogger} from '../logger';
 import {timeout} from '../utils/promise';
 
-export const SANDBOX_DEFAULT_BUILTINS = ['assert', 'buffer', 'crypto', 'util', 'path', 'url', 'stream', 'perf_hooks'];
+export const SANDBOX_DEFAULT_BUILTINS = ['assert', 'buffer', 'crypto', 'util', 'path', 'url', 'stream'];
 
 export interface SandboxOption {
   cache?: Cache;
@@ -173,9 +173,7 @@ export class IndexerSandbox extends Sandbox {
     this.setGlobal('args', args);
     this.setGlobal('funcName', funcName);
     try {
-      logger.info(`Running handler ${funcName}`);
       await this.runTimeout(this.config.timeout);
-      logger.info(`Handler done ${funcName}`);
     } catch (e: any) {
       const newStack = await this.convertStack(e.stack);
       e.stack = newStack;
